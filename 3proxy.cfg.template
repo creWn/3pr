@@ -1,0 +1,23 @@
+# 3proxy configuration
+daemon
+log /dev/stdout
+rotate 0
+
+service
+    proxy
+    socks
+
+internal 0.0.0.0
+external 0.0.0.0
+
+proxy -p3128
+socks -p1080
+
+# Включаем аутентификацию
+auth strong
+
+# Подстановка логина и пароля из переменных окружения
+users ${PROXY_LOGIN}:CL:${PROXY_PASSWORD}
+
+# Разрешаем доступ только аутентифицированным пользователям
+allow * * * * *
