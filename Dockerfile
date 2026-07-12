@@ -22,4 +22,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PROXY_PORT}')" || exit 1
 
 ENTRYPOINT ["sh", "-c", \
-    "proxy --hostname 0.0.0.0 --port ${PROXY_PORT} --log-level d"]
+    "proxy --hostname 0.0.0.0 --port ${PROXY_PORT} --log-level d --timeout 5 --host-resolver --server-recvbuf-size 65536 --client-recvbuf-size 65536 --open-file-limit 65536"]
