@@ -1,61 +1,29 @@
-# 3proxy.full is fully functional distroless 3proxy build
-#
-# Examples are for podman, for docker change 'podman' to 'docker'
-#
-#to build:
-# podman build -f Dockerfile.full -t 3proxy.full .
-#to run:
-#
-# echo nserver 8.8.8.8 >/path/to/local/config/directory/3proxy.cfg
-# echo proxy -p3129 >>/path/to/local/config/directory/3proxy.cfg
-# podman run --read-only -p 3129:3129 -v /path/to/local/config/directory:/etc/3proxy --name 3proxy.full 3proxy.full
-#
-# use "log" without pathname in config to log to stdout.
-# plugins are located in /usr/local/3proxy/libexec (/libexec for chroot config)
-# symlinked as /lib and /lib64 in both root and chroot configurations, so no need
-# to specify full path to plugin.
-#
-# Since 0.9.6 image is distroless, no reason to use chroot, chroot
-# configuration is supported for compatibility only.
+# syntax=docker/dockerfile:1
+FROM python:3.12-slim
 
+# Создаём непривилегированного пользователя
+RUN useradd --create-home --shell /bin/bash proxy
 
-FROM docker.io/gcc AS buildenv
-COPY . 3proxy
-RUN cd 3proxy &&\
- apt --assume-yes update && apt --assume-yes install libssl-dev libpcre2-dev &&\
- make -f Makefile.Linux LIBSTATIC=true PAM_CHECK=false &&\
- strip bin/3proxy &&\
- mkdir /dist &&\
- mkdir /dist/etc &&\
- mkdir /dist/etc/3proxy &&\
- mkdir /dist/bin &&\
- mkdir /dist/usr &&\
- mkdir /dist/usr/local &&\
- mkdir /dist/usr/local/3proxy &&\
- mkdir /dist/usr/local/3proxy/libexec &&\
- mkdir /dist/usr/local/3proxy/conf &&\
- cp bin/3proxy /dist/bin &&\
- cp bin/*.so /dist/usr/local/3proxy/libexec &&\
- cp scripts/3proxy.cfg.inchroot /dist/etc/3proxy/3proxy.cfg
-RUN cd /dist &&\
- ln -s /usr/local/3proxy/libexec lib64 &&\
- ln -s /usr/local/3proxy/libexec lib &&\
- ln -s /usr/local/3proxy/libexec usr/lib &&\
- ln -s /usr/local/3proxy/libexec usr/lib64 &&\
- ln -s /usr/local/3proxy/libexec /dist/usr/local/3proxy/libexec/`gcc -dumpmachine`
-RUN cp /lib/ld-*.so.* /dist/usr/local/3proxy/libexec || true
-RUN cp /lib64/ld-*.so.* /dist/usr/local/3proxy/libexec || true
-RUN cp "/lib/`gcc -dumpmachine`"/libc.so.* /dist/usr/local/3proxy/libexec &&\
- cp "/lib/`gcc -dumpmachine`"/libdl.so.* /dist/usr/local/3proxy/libexec
-RUN cd /dist/usr/local/3proxy/ &&\
- ln -s libexec lib &&\
- ln -s libexec lib64 &&\
- mkdir usr
-RUN cd /dist/usr/local/3proxy/usr &&\
- ln -s ../libexec lib &&\
- ln -s ../libexec lib64 &&\
- strip /dist/usr/local/3proxy/libexec/*.so
+# Устанавливаем proxy.py
+RUN pip install --no-cache-dir proxy.py==2.4.4
 
-FROM scratch
-COPY --from=buildenv /dist /
-CMD ["/bin/3proxy", "/etc/3proxy/3proxy.cfg"]
+# Рабочая директория (опционально)
+WORKDIR /home/proxy
+
+# Порт по умолчанию (можно переопределить через -e PROXY_PORT=...)
+ENV PROXY_PORT=8899
+
+# Учётные данные (обязательно задать при запуске)
+ENV PROXY_USER=proxyuser
+ENV PROXY_PASS=proxypass
+
+# Переключаемся на обычного пользователя
+USER proxy
+
+EXPOSE ${PROXY_PORT}
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PROXY_PORT}')" || exit 1
+
+ENTRYPOINT ["sh", "-c", \
+    "proxy --hostname 0.0.0.0 --port ${PROXY_PORT} --basic-auth ${PROXY_USER}:${PROXY_PASS}"]
