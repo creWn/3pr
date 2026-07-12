@@ -1,24 +1,20 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
-# Создаём непривилегированного пользователя
-RUN useradd --create-home --shell /bin/bash proxy
+# Создаём непривилегированного пользователя с уникальным именем
+RUN useradd --create-home --shell /bin/bash proxyuser
 
 # Устанавливаем proxy.py
 RUN pip install --no-cache-dir proxy.py==2.4.4
 
-# Рабочая директория (опционально)
-WORKDIR /home/proxy
+WORKDIR /home/proxyuser
 
-# Порт по умолчанию (можно переопределить через -e PROXY_PORT=...)
+# Переменные окружения для настройки
 ENV PROXY_PORT=8899
-
-# Учётные данные (обязательно задать при запуске)
 ENV PROXY_USER=proxyuser
 ENV PROXY_PASS=proxypass
 
-# Переключаемся на обычного пользователя
-USER proxy
+USER proxyuser
 
 EXPOSE ${PROXY_PORT}
 
