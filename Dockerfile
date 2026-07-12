@@ -22,4 +22,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PROXY_PORT}')" || exit 1
 
 ENTRYPOINT ["sh", "-c", \
-    "proxy --hostname 0.0.0.0 --port ${PROXY_PORT} --basic-auth ${PROXY_USER}:${PROXY_PASS}"]
+    "proxy --hostname 0.0.0.0 --port ${PROXY_PORT} --basic-auth ${PROXY_USER}:${PROXY_PASS} --log-level d"]
